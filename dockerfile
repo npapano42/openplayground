@@ -1,5 +1,5 @@
 # ==== FRONTEND ====
-FROM node:19-alpine AS builder
+FROM node:lts AS builder
 
 WORKDIR /frontend
 
