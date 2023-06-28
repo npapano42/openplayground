@@ -39,6 +39,12 @@ cd app && npm install && npx parcel watch src/index.html --no-cache
 cd server && pip3 install -r requirements.txt && cd .. && python3 -m server.app
 ```
 
+Setting up OpenSearch:
+
+```sh
+docker run -d -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" -e "plugins.security.disabled=true" opensearchproject/opensearch:latest
+```
+
 ## Docker
 
 ```sh

@@ -2,6 +2,11 @@ import logging
 import json
 import time
 import threading
+import os
+import requests
+
+from dotenv import load_dotenv
+from requests.auth import HTTPBasicAuth
 
 from .response_utils import create_response_message
 from ..inference import InferenceRequest, InferenceResult, InferenceRequest
@@ -13,6 +18,8 @@ from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+load_dotenv()
 
 inference_bp = Blueprint('inference', __name__, url_prefix='/inference')
 
@@ -34,6 +41,10 @@ def stream_inference():
     request_uuid = "1"
     prompt = data['prompt']
     models = data['models']
+
+    os_response = opensearch_query_relevant_docs(prompt)
+
+    print(os_response.text)
     
     all_tasks = [task for task in (create_inference_request(model, storage, prompt, request_uuid) for model in models) if task is not None]
 
@@ -127,3 +138,46 @@ def split_tasks_by_provider(tasks: List[InferenceRequest]) -> Tuple[List[Inferen
         (local_tasks if task.model_provider == "huggingface-local" else remote_tasks).append(task)
 
     return local_tasks, remote_tasks
+
+def opensearch_query_relevant_docs(input_prompt):
+    """
+    Query to opensearch cluster for relevant documents to add to prompt
+    """
+    url = "http://localhost:9200/text/_search"
+
+    payload = json.dumps({
+    "query": {
+        "bool": {
+        "should": [
+            {
+            "knn": {
+                "embedding": {
+                "vector": [
+                    10,
+                    20,
+                    30
+                ],
+                "k": 2
+                }
+            }
+            },
+            {
+            "match": {
+                "title": {
+                "query": input_prompt
+                }
+            }
+            }
+        ]
+        }
+    },
+    "size": 4
+    })
+    headers = {
+    'Content-Type': 'application/json'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    return response
+
